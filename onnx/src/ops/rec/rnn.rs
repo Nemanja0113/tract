@@ -63,7 +63,7 @@ impl WireBody for RNN {
             None
         };
 
-        let matmul_t = EinSum::new("mk,nk->mn".parse()?, f32::datum_type());
+        let matmul_t = EinSum::new("mk,nk->mn".parse()?, body.outlet_fact(Xt)?.datum_type);
 
         // Ht = f(Xt*(Wi^T) + Ht-1*(Ri^T) + Wbi + Rbi)
         wire!(Xt_WiT = matmul_t.clone(), Xt, W);

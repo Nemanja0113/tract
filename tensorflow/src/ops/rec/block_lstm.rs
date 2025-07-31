@@ -123,7 +123,7 @@ impl Expansion for BlockLSTM {
 
         let w = body.add_const(format!("{prefix}-w"), w)?;
         let b = body.add_const(format!("{prefix}-b"), b)?;
-        wire!(i_ci_f_o_1 = EinSum::new("mk,kn->mn".parse()?, f32::datum_type()), xh, w);
+        wire!(i_ci_f_o_1 = EinSum::new("mk,kn->mn".parse()?, self.t), xh, w);
         wire!(i_ci_f_o = math::add(), b, i_ci_f_o_1);
 
         wire!(i_1 = array::Slice::new(1, 0, cell_size), i_ci_f_o);
