@@ -59,7 +59,16 @@ impl Expansion for Gemm {
     ) -> TractResult<TVec<OutletId>> {
         let (a, b, c) = (inputs[0], inputs[1], inputs.get(2));
         let axes = AxesMapping::for_numpy_matmul(2, self.trans_a, self.trans_b, false)?;
-        let datum_type = model.outlet_fact(a)?.datum_type;
+        
+        // Get datum type with fallback to f32 if not available
+        let datum_type = match model.outlet_fact(a) {
+            Ok(fact) => fact.datum_type,
+            Err(_) => {
+                // Fallback to f32 if we can't get the datum type
+                DatumType::F32
+            }
+        };
+        
         let mut wire = model.wire_node(
             format!("{name}.ab"),
             EinSum::new(axes, datum_type),

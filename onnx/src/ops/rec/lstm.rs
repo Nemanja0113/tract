@@ -101,7 +101,11 @@ impl WireBody for LSTM {
             None
         };
 
-        let matmul_t = EinSum::new("mk,nk->mn".parse()?, body.outlet_fact(Xt)?.datum_type);
+        let datum_type = match body.outlet_fact(Xt) {
+            Ok(fact) => fact.datum_type,
+            Err(_) => DatumType::F32, // Fallback to f32 if not available
+        };
+        let matmul_t = EinSum::new("mk,nk->mn".parse()?, datum_type);
 
         // it = f(Xt*(Wi^T) + Ht-1*(Ri^T) + Pi (.) Ct-1 + Wbi + Rbi)
         wire!(Xt_WiT = matmul_t.clone(), Xt, Wi);

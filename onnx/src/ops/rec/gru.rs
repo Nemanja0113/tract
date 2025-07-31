@@ -68,7 +68,11 @@ impl WireBody for GRU {
         wire!(Wr = array::Slice::new(0, 1.to_dim() * &h_size, 2.to_dim() * &h_size), W);
         wire!(Wh = array::Slice::new(0, 2.to_dim() * &h_size, 3.to_dim() * &h_size), W);
 
-        let matmul_t = EinSum::new("mk,nk->mn".parse()?, body.outlet_fact(Xt)?.datum_type);
+        let datum_type = match body.outlet_fact(Xt) {
+            Ok(fact) => fact.datum_type,
+            Err(_) => DatumType::F32, // Fallback to f32 if not available
+        };
+        let matmul_t = EinSum::new("mk,nk->mn".parse()?, datum_type);
 
         // zt = f(Xt*(Wz^T) + Ht-1*(Rz^T) + Wbz + Rbz)
         wire!(Xt_WzT = matmul_t.clone(), Xt, Wz);
