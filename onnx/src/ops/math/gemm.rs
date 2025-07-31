@@ -59,9 +59,10 @@ impl Expansion for Gemm {
     ) -> TractResult<TVec<OutletId>> {
         let (a, b, c) = (inputs[0], inputs[1], inputs.get(2));
         let axes = AxesMapping::for_numpy_matmul(2, self.trans_a, self.trans_b, false)?;
+        let datum_type = model.outlet_fact(a)?.datum_type;
         let mut wire = model.wire_node(
             format!("{name}.ab"),
-            EinSum::new(axes, model.outlet_fact(a)?.datum_type),
+            EinSum::new(axes, datum_type),
             [a, b].as_ref(),
         )?[0];
         if self.alpha != 1.0 {
