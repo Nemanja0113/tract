@@ -3,7 +3,7 @@ use crate::pb::*;
 use tract_hir::internal::*;
 use tract_hir::ops;
 use tract_hir::tract_core::ops::einsum::EinSum;
-use tract_hir::tract_core::ops::cast::cast;
+use tract_hir::tract_core::ops::cast::wire_cast;
 
 use super::common::CommonRec;
 use super::common::WireBody;
@@ -111,8 +111,8 @@ impl WireBody for LSTM {
         
         // Add type conversion for Xt if needed
         let Xt_converted = if x_fact.datum_type != target_datum_type {
-            wire!(Xt_cast = tract_core::ops::cast::cast(target_datum_type), Xt);
-            Xt_cast
+            let casted = wire_cast(prefix, body, &[Xt], target_datum_type)?;
+            casted[0]
         } else {
             Xt
         };
