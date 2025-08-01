@@ -352,7 +352,7 @@ impl Expansion for CommonRec {
         s.equals(&inputs[1].shape[1], (w_mul as i64) * inputs[2].shape[2].bex())?; // hidden_size
         s.equals(&inputs[2].shape[1], (w_mul as i64) * inputs[2].shape[2].bex())?; // hidden_size
         if let Some(bias) = self.optional_bias_input {
-            s.equals(&inputs[bias].datum_type, &inputs[0].datum_type)?;
+            s.equals(&inputs[bias].datum_type, &inputs[1].datum_type)?; // Bias matches weight type
             s.equals(&inputs[bias].rank, 2)?;
             s.equals(&inputs[bias].shape[0], &inputs[2].shape[0])?; // num_directions
             s.equals(&inputs[bias].shape[1], (b_mul as i64) * inputs[2].shape[2].bex())?;
@@ -363,27 +363,27 @@ impl Expansion for CommonRec {
             s.equals(&inputs[seq_len].shape[0], &inputs[0].shape[b])?; // batch_size
         }
         if let Some(initial_h) = self.optional_initial_h_input {
-            s.equals(&inputs[initial_h].datum_type, &inputs[0].datum_type)?;
+            s.equals(&inputs[initial_h].datum_type, &inputs[1].datum_type)?; // Initial h matches weight type
             s.equals(&inputs[initial_h].rank, 3)?;
             s.equals(&inputs[initial_h].shape[dirs], &inputs[1].shape[0])?; // num_directions
             s.equals(&inputs[initial_h].shape[b], &inputs[0].shape[b])?; // batch_size
             s.equals(&inputs[initial_h].shape[2], &inputs[2].shape[2])?; // hidden_size
         }
         if let Some(initial_c) = self.optional_initial_c_input {
-            s.equals(&inputs[initial_c].datum_type, &inputs[0].datum_type)?;
+            s.equals(&inputs[initial_c].datum_type, &inputs[1].datum_type)?; // Initial c matches weight type
             s.equals(&inputs[initial_c].rank, 3)?;
             s.equals(&inputs[initial_c].shape[dirs], &inputs[1].shape[0])?; // num_directions
             s.equals(&inputs[initial_c].shape[b], &inputs[0].shape[b])?; // batch_size
             s.equals(&inputs[initial_c].shape[2], &inputs[2].shape[2])?; // hidden_size
         }
         if let Some(p) = self.optional_p_input {
-            s.equals(&inputs[p].datum_type, &inputs[0].datum_type)?;
+            s.equals(&inputs[p].datum_type, &inputs[1].datum_type)?; // P matches weight type
             s.equals(&inputs[p].rank, 2)?;
             s.equals(&inputs[p].shape[0], &inputs[1].shape[0])?; // num_directions
             s.equals(&inputs[p].shape[1], 3 * inputs[2].shape[2].bex())?; // hidden_size
         }
         if let Some(y) = self.optional_y_output {
-            s.equals(&outputs[y].datum_type, &inputs[0].datum_type)?;
+            s.equals(&outputs[y].datum_type, &inputs[1].datum_type)?; // Output matches weight type
             s.equals(&outputs[y].rank, 4)?;
             s.equals(&outputs[y].shape[seq_len], &inputs[0].shape[seq_len])?; // seq_lenght
             s.equals(&outputs[y].shape[dirs_in_y], &inputs[1].shape[0])?; // num_directions
@@ -391,14 +391,14 @@ impl Expansion for CommonRec {
             s.equals(&outputs[y].shape[3], &inputs[2].shape[2])?; // hidden_size
         }
         if let Some(y_h) = self.optional_y_h_output {
-            s.equals(&outputs[y_h].datum_type, &inputs[0].datum_type)?;
+            s.equals(&outputs[y_h].datum_type, &inputs[1].datum_type)?; // Output h matches weight type
             s.equals(&outputs[y_h].rank, 3)?;
             s.equals(&outputs[y_h].shape[dirs], &inputs[1].shape[0])?; // num_directions
             s.equals(&outputs[y_h].shape[b], &inputs[0].shape[b])?; // batch_size
             s.equals(&outputs[y_h].shape[2], &inputs[2].shape[2])?; // hidden_size
         }
         if let Some(y_c) = self.optional_y_c_output {
-            s.equals(&outputs[y_c].datum_type, &inputs[0].datum_type)?;
+            s.equals(&outputs[y_c].datum_type, &inputs[1].datum_type)?; // Output c matches weight type
             s.equals(&outputs[y_c].rank, 3)?;
             s.equals(&outputs[y_c].shape[dirs], &inputs[1].shape[0])?; // num_directions
             s.equals(&outputs[y_c].shape[b], &inputs[0].shape[b])?; // batch_size
