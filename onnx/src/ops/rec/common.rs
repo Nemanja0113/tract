@@ -65,6 +65,8 @@ impl CommonRec {
 
         let x_fact = target.outlet_fact(inputs[0])?.clone();
         let r_fact = target.outlet_fact(inputs[2])?.clone();
+        let w_fact = target.outlet_fact(inputs[1])?.clone();
+        let target_datum_type = w_fact.datum_type;
 
         if let Some(seqlen) = self.optional_sequence_lens_input {
             let Some(seqlen) = &target.outlet_fact(inputs[seqlen])?.konst else {
@@ -182,7 +184,7 @@ impl CommonRec {
 
         let h_source = body.add_source(
             "h_source",
-            x_fact.datum_type.fact(&[b_size.clone(), 1.to_dim(), h_size.clone()]),
+            target_datum_type.fact(&[b_size.clone(), 1.to_dim(), h_size.clone()]),
         )?;
         wire!(Ht_1 = AxisOp::Rm(1), h_source);
 
@@ -214,7 +216,7 @@ impl CommonRec {
             input_mapping.push(scan::InputMapping::State);
             let c_source = body.add_source(
                 "c_source",
-                x_fact.datum_type.fact(&[b_size.clone(), 1.to_dim(), h_size.clone()]),
+                target_datum_type.fact(&[b_size.clone(), 1.to_dim(), h_size.clone()]),
             )?;
             wire!(Ct_1 = AxisOp::Rm(1), c_source);
         }
