@@ -321,9 +321,11 @@ impl Expansion for CommonRec {
             + self.optional_y_h_output.is_some() as usize
             + self.optional_y_c_output.is_some() as usize;
         check_output_arity(outputs, output_count)?;
-        s.equals(&inputs[0].datum_type, &inputs[1].datum_type)?;
-        s.equals(&inputs[0].datum_type, &inputs[2].datum_type)?;
-        s.equals(&inputs[0].datum_type, &outputs[0].datum_type)?;
+        // Allow different datum types - the body will handle conversion
+        // s.equals(&inputs[0].datum_type, &inputs[1].datum_type)?;
+        // s.equals(&inputs[0].datum_type, &inputs[2].datum_type)?;
+        s.equals(&inputs[1].datum_type, &inputs[2].datum_type)?; // W and R must have same type
+        s.equals(&inputs[1].datum_type, &outputs[0].datum_type)?; // Output matches weight type
         s.equals(&inputs[0].rank, 3)?;
         s.equals(&inputs[1].rank, 3)?;
         s.equals(&inputs[2].rank, 3)?;

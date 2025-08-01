@@ -101,14 +101,25 @@ impl WireBody for LSTM {
             None
         };
 
-        let datum_type = match body.outlet_fact(Xt) {
-            Ok(fact) => fact.datum_type,
-            Err(_) => DatumType::F32, // Fallback to f32 if not available
+        let x_fact = body.outlet_fact(Xt)?;
+        let w_fact = body.outlet_fact(W)?;
+        let r_fact = body.outlet_fact(R)?;
+        
+        // Use the weight's datum type as the target
+        let target_datum_type = w_fact.datum_type;
+        
+        // Add type conversion for Xt if needed
+        let Xt_converted = if x_fact.datum_type != target_datum_type {
+            wire!(Xt_cast = tract_core::ops::cast::cast(target_datum_type), Xt);
+            Xt_cast
+        } else {
+            Xt
         };
-        let matmul_t = EinSum::new("mk,nk->mn".parse()?, datum_type);
+        
+        let matmul_t = EinSum::new("mk,nk->mn".parse()?, target_datum_type);
 
         // it = f(Xt*(Wi^T) + Ht-1*(Ri^T) + Pi (.) Ct-1 + Wbi + Rbi)
-        wire!(Xt_WiT = matmul_t.clone(), Xt, Wi);
+        wire!(Xt_WiT = matmul_t.clone(), Xt_converted, Wi);
         wire!(Ht_1_RiT = matmul_t.clone(), Ht_1, Ri);
         wire!(it0 = math::add(), Xt_WiT, Ht_1_RiT);
         let mut it0 = it0;
@@ -124,7 +135,7 @@ impl WireBody for LSTM {
         wire!(it = self.f.clone(), it0);
 
         // ft = f(Xt*(Wf^T) + Ht-1*(Rf^T) + Pf (.) Ct-1 + Wbf + Rbf)
-        wire!(Xt_WfT = matmul_t.clone(), Xt, Wf);
+        wire!(Xt_WfT = matmul_t.clone(), Xt_converted, Wf);
         wire!(Ht_1_RfT = matmul_t.clone(), Ht_1, Rf);
         wire!(ft0 = math::add(), Xt_WfT, Ht_1_RfT);
         let mut ft0 = ft0;
@@ -140,7 +151,7 @@ impl WireBody for LSTM {
         wire!(ft = self.f.clone(), ft0);
 
         // ct = g(Xt*(Wc^T) + Ht-1*(Rc^T) + Wbc + Rbc)
-        wire!(Xt_WcT = matmul_t.clone(), Xt, Wc);
+        wire!(Xt_WcT = matmul_t.clone(), Xt_converted, Wc);
         wire!(Ht_1_RcT = matmul_t.clone(), Ht_1, Rc);
         wire!(ct0 = math::add(), Xt_WcT, Ht_1_RcT);
         let mut ct0 = ct0;
@@ -156,7 +167,7 @@ impl WireBody for LSTM {
         wire!(Ct = math::add(), ft_Ct_1, it_ct);
 
         // ot = f(Xt*(Wo^T) + Ht-1*(Ro^T) + Po (.) Ct + Wbo + Rbo)
-        wire!(Xt_WoT = matmul_t.clone(), Xt, Wo);
+        wire!(Xt_WoT = matmul_t.clone(), Xt_converted, Wo);
         wire!(Ht_1_RoT = matmul_t, Ht_1, Ro);
         wire!(ot0 = math::add(), Xt_WoT, Ht_1_RoT);
         let mut ot0 = ot0;
