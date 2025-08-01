@@ -3,6 +3,7 @@ use crate::pb::*;
 use tract_hir::internal::*;
 use tract_hir::ops;
 use tract_hir::tract_core::ops::einsum::EinSum;
+use half::f16;
 
 pub fn gemm(
     _ctx: &ParsingContext,
@@ -75,7 +76,14 @@ impl Expansion for Gemm {
             [a, b].as_ref(),
         )?[0];
         if self.alpha != 1.0 {
-            let alpha = tensor0(self.alpha).broadcast_into_rank(model.outlet_fact(wire)?.rank())?;
+            // Cast alpha to the correct datum type
+            let alpha_tensor = match datum_type {
+                DatumType::F16 => tensor0(f16::from_f32(self.alpha)),
+                DatumType::F32 => tensor0(self.alpha),
+                DatumType::F64 => tensor0(self.alpha as f64),
+                _ => tensor0(self.alpha), // fallback to f32
+            };
+            let alpha = alpha_tensor.broadcast_into_rank(model.outlet_fact(wire)?.rank())?;
             let alpha = model.add_const(name.to_string() + ".alpha_ab.cst", alpha)?;
             wire = model.wire_node(
                 name.to_string() + ".alpha_ab",
@@ -92,7 +100,14 @@ impl Expansion for Gemm {
                     &[c],
                 )?[0];
             }
-            let beta = tensor0(self.beta).broadcast_into_rank(model.outlet_fact(wire)?.rank())?;
+            // Cast beta to the correct datum type
+            let beta_tensor = match datum_type {
+                DatumType::F16 => tensor0(f16::from_f32(self.beta)),
+                DatumType::F32 => tensor0(self.beta),
+                DatumType::F64 => tensor0(self.beta as f64),
+                _ => tensor0(self.beta), // fallback to f32
+            };
+            let beta = beta_tensor.broadcast_into_rank(model.outlet_fact(wire)?.rank())?;
             let beta = model.add_const(name.to_string() + ".beta_c.cst", beta)?;
             let beta_c =
                 model.wire_node(name.to_string() + ".beta_c", ops::math::mul(), &[beta, c])?[0];
