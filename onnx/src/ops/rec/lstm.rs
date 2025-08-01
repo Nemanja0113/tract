@@ -102,12 +102,12 @@ impl WireBody for LSTM {
             None
         };
 
-        let x_fact = body.outlet_fact(Xt)?;
+        // Get target datum type from weights
         let w_fact = body.outlet_fact(W)?;
-        let r_fact = body.outlet_fact(R)?;
-        
-        // Use the weight's datum type as the target
         let target_datum_type = w_fact.datum_type;
+
+        let x_fact = body.outlet_fact(Xt)?;
+        let r_fact = body.outlet_fact(R)?;
         
         // Add type conversion for Xt if needed
         let Xt_converted = if x_fact.datum_type != target_datum_type {
