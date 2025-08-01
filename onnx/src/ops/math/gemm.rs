@@ -36,14 +36,16 @@ impl Expansion for Gemm {
         outputs: &'p [TensorProxy],
     ) -> InferenceResult {
         if inputs.len() == 3 {
-            s.equals(&inputs[2].datum_type, &outputs[0].datum_type)?;
+            // Allow bias to have different type - it will be cast in wire method
+            // s.equals(&inputs[2].datum_type, &outputs[0].datum_type)?;
         }
         s.equals(&inputs[0].rank, 2)?;
         s.equals(&inputs[1].rank, 2)?;
         check_output_arity(outputs, 1)?;
         s.equals(&outputs[0].rank, 2)?;
-        s.equals(&inputs[0].datum_type, &outputs[0].datum_type)?;
-        s.equals(&inputs[1].datum_type, &outputs[0].datum_type)?;
+        // Allow different datum types - the wire method will handle conversion
+        // s.equals(&inputs[0].datum_type, &outputs[0].datum_type)?;
+        // s.equals(&inputs[1].datum_type, &outputs[0].datum_type)?;
         let (ca, ra) = if self.trans_a { (0, 1) } else { (1, 0) };
         let (cb, rb) = if self.trans_b { (0, 1) } else { (1, 0) };
         s.equals(&inputs[0].shape[ra], &outputs[0].shape[0])?;
@@ -61,23 +63,33 @@ impl Expansion for Gemm {
         let (a, b, c) = (inputs[0], inputs[1], inputs.get(2));
         let axes = AxesMapping::for_numpy_matmul(2, self.trans_a, self.trans_b, false)?;
         
-        // Get datum type with fallback to f32 if not available
-        let datum_type = match model.outlet_fact(a) {
-            Ok(fact) => fact.datum_type,
-            Err(_) => {
-                // Fallback to f32 if we can't get the datum type
-                DatumType::F32
-            }
+        // Get datum types
+        let a_fact = model.outlet_fact(a)?;
+        let b_fact = model.outlet_fact(b)?;
+        
+        // Use the first input's datum type as the target
+        let target_datum_type = a_fact.datum_type;
+        
+        // Add type conversion for b if needed
+        let b_converted = if b_fact.datum_type != target_datum_type {
+            let b_cast = model.wire_node(
+                format!("{name}.b_cast"),
+                tract_core::ops::cast::cast(target_datum_type),
+                &[b],
+            )?[0];
+            b_cast
+        } else {
+            b
         };
         
         let mut wire = model.wire_node(
             format!("{name}.ab"),
-            EinSum::new(axes, datum_type),
-            [a, b].as_ref(),
+            EinSum::new(axes, target_datum_type),
+            [a, b_converted].as_ref(),
         )?[0];
         if self.alpha != 1.0 {
             // Cast alpha to the correct datum type
-            let alpha_tensor = match datum_type {
+            let alpha_tensor = match target_datum_type {
                 DatumType::F16 => tensor0(f16::from_f32(self.alpha)),
                 DatumType::F32 => tensor0(self.alpha),
                 DatumType::F64 => tensor0(self.alpha as f64),
@@ -93,6 +105,17 @@ impl Expansion for Gemm {
         }
         if self.beta != 0.0f32 && c.is_some() {
             let mut c = c.copied().unwrap();
+            
+            // Add type conversion for c if needed
+            let c_fact = model.outlet_fact(c)?;
+            if c_fact.datum_type != target_datum_type {
+                c = model.wire_node(
+                    format!("{name}.c_cast"),
+                    tract_core::ops::cast::cast(target_datum_type),
+                    &[c],
+                )?[0];
+            }
+            
             while model.outlet_fact(wire)?.rank() > model.outlet_fact(c)?.rank() {
                 c = model.wire_node(
                     format!("{}.c_add_axis_{}", name, model.outlet_fact(c)?.rank()),
@@ -101,7 +124,7 @@ impl Expansion for Gemm {
                 )?[0];
             }
             // Cast beta to the correct datum type
-            let beta_tensor = match datum_type {
+            let beta_tensor = match target_datum_type {
                 DatumType::F16 => tensor0(f16::from_f32(self.beta)),
                 DatumType::F32 => tensor0(self.beta),
                 DatumType::F64 => tensor0(self.beta as f64),
