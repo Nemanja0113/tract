@@ -3,6 +3,7 @@ use crate::pb::*;
 use tract_hir::internal::*;
 use tract_hir::ops;
 use tract_hir::tract_core::ops::einsum::EinSum;
+use tract_hir::tract_core::ops::cast::cast;
 
 use super::common::CommonRec;
 use super::common::WireBody;
