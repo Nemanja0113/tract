@@ -112,7 +112,7 @@ impl WireBody for LSTM {
         // Add type conversion for Xt if needed
         let Xt_converted = if x_fact.datum_type != target_datum_type {
             let cast_node = body.wire_node(
-                format!("{prefix}.cast"),
+                format!("{prefix}.cast_xt"),
                 tract_core::ops::cast::cast(target_datum_type),
                 &[Xt],
             )?;
@@ -121,11 +121,37 @@ impl WireBody for LSTM {
             Xt
         };
         
+        // Add type conversion for Ht_1 if needed
+        let ht_1_fact = body.outlet_fact(Ht_1)?;
+        let Ht_1_converted = if ht_1_fact.datum_type != target_datum_type {
+            let cast_node = body.wire_node(
+                format!("{prefix}.cast_ht1"),
+                tract_core::ops::cast::cast(target_datum_type),
+                &[Ht_1],
+            )?;
+            cast_node[0]
+        } else {
+            Ht_1
+        };
+        
+        // Add type conversion for Ct_1 if needed
+        let ct_1_fact = body.outlet_fact(Ct_1)?;
+        let Ct_1_converted = if ct_1_fact.datum_type != target_datum_type {
+            let cast_node = body.wire_node(
+                format!("{prefix}.cast_ct1"),
+                tract_core::ops::cast::cast(target_datum_type),
+                &[Ct_1],
+            )?;
+            cast_node[0]
+        } else {
+            Ct_1
+        };
+        
         let matmul_t = EinSum::new("mk,nk->mn".parse()?, target_datum_type);
 
         // it = f(Xt*(Wi^T) + Ht-1*(Ri^T) + Pi (.) Ct-1 + Wbi + Rbi)
         wire!(Xt_WiT = matmul_t.clone(), Xt_converted, Wi);
-        wire!(Ht_1_RiT = matmul_t.clone(), Ht_1, Ri);
+        wire!(Ht_1_RiT = matmul_t.clone(), Ht_1_converted, Ri);
         wire!(it0 = math::add(), Xt_WiT, Ht_1_RiT);
         let mut it0 = it0;
         if let Some(biases) = biases {
@@ -133,7 +159,7 @@ impl WireBody for LSTM {
             it0 = it_bias;
         };
         if let Some(peephole) = peepholes {
-            wire!(Pi_Ct_1 = math::mul(), peephole.0, Ct_1);
+            wire!(Pi_Ct_1 = math::mul(), peephole.0, Ct_1_converted);
             wire!(it_peep = math::add(), Pi_Ct_1, it0);
             it0 = it_peep;
         }
@@ -141,7 +167,7 @@ impl WireBody for LSTM {
 
         // ft = f(Xt*(Wf^T) + Ht-1*(Rf^T) + Pf (.) Ct-1 + Wbf + Rbf)
         wire!(Xt_WfT = matmul_t.clone(), Xt_converted, Wf);
-        wire!(Ht_1_RfT = matmul_t.clone(), Ht_1, Rf);
+        wire!(Ht_1_RfT = matmul_t.clone(), Ht_1_converted, Rf);
         wire!(ft0 = math::add(), Xt_WfT, Ht_1_RfT);
         let mut ft0 = ft0;
         if let Some(biases) = biases {
@@ -149,7 +175,7 @@ impl WireBody for LSTM {
             ft0 = ft_bias;
         };
         if let Some(peephole) = peepholes {
-            wire!(Pf_Ct_1 = math::mul(), peephole.2, Ct_1);
+            wire!(Pf_Ct_1 = math::mul(), peephole.2, Ct_1_converted);
             wire!(ft_peep = math::add(), Pf_Ct_1, ft0);
             ft0 = ft_peep;
         }
@@ -157,7 +183,7 @@ impl WireBody for LSTM {
 
         // ct = g(Xt*(Wc^T) + Ht-1*(Rc^T) + Wbc + Rbc)
         wire!(Xt_WcT = matmul_t.clone(), Xt_converted, Wc);
-        wire!(Ht_1_RcT = matmul_t.clone(), Ht_1, Rc);
+        wire!(Ht_1_RcT = matmul_t.clone(), Ht_1_converted, Rc);
         wire!(ct0 = math::add(), Xt_WcT, Ht_1_RcT);
         let mut ct0 = ct0;
         if let Some(biases) = biases {
@@ -167,13 +193,13 @@ impl WireBody for LSTM {
         wire!(ct = self.g.clone(), ct0);
 
         // Ct = ft (.) Ct-1 + it (.) ct
-        wire!(ft_Ct_1 = math::mul(), ft, Ct_1);
+        wire!(ft_Ct_1 = math::mul(), ft, Ct_1_converted);
         wire!(it_ct = math::mul(), it, ct);
         wire!(Ct = math::add(), ft_Ct_1, it_ct);
 
         // ot = f(Xt*(Wo^T) + Ht-1*(Ro^T) + Po (.) Ct + Wbo + Rbo)
         wire!(Xt_WoT = matmul_t.clone(), Xt_converted, Wo);
-        wire!(Ht_1_RoT = matmul_t, Ht_1, Ro);
+        wire!(Ht_1_RoT = matmul_t, Ht_1_converted, Ro);
         wire!(ot0 = math::add(), Xt_WoT, Ht_1_RoT);
         let mut ot0 = ot0;
         if let Some(biases) = biases {
